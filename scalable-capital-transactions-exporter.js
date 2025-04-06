@@ -4,7 +4,7 @@
 // @version      2025-03-29
 // @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
-// @match        https://de.scalable.capital/broker/transactions*
+// @match        https://*.scalable.capital/broker/transactions*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=scalable.capital
 // @grant        GM_registerMenuCommand
 // @require      https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.5.0/decimal.min.js
