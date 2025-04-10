@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scalable Capital Transactions Exporter
 // @namespace    http://tampermonkey.net/
-// @version      2025-03-29
+// @version      2025-04-10
 // @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
@@ -453,41 +453,39 @@
     function parseToPortfolioPerformanceCSV(transactions, lang) {
         let csvHeader, csvRows;
         if (lang === "de-DE") {
-            for (const transaction of transactions) {
-                if (transaction.type === "CASH_TRANSACTION" && transaction.cashTransactionType !== "DISTRIBUTION") {
-                    transaction.id += " " + transaction.description;
-                    transaction.description = "";
-                }
-                if (transaction.type === "SECURITY_TRANSACTION") {
-                    transaction.type = JSON.stringify(transaction.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
-                } else if (transaction.type === "CASH_TRANSACTION") {
-                    transaction.type = JSON.stringify(transaction.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende");
-                }
-            }
-
             csvHeader = "Datum;Uhrzeit;Typ;Wertpapiername;ISIN;Wert;Stück;Buchungswährung;Gebühren;Steuern;Bruttobetrag;Notiz\n";
             csvRows = transactions.map(t => {
                 const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
                 const [date, time] = dateTime.split(", ");
+                if (t.type === "SECURITY_TRANSACTION") {
+                    t.type = JSON.stringify(t.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
+                } else if (t.type === "CASH_TRANSACTION") {
+                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende");
+                    if (t.cashTransactionType === "DISTRIBUTION") {
+                        t.isin = t.relatedIsin;
+                    } else {
+                        t.id += " " + t.description;
+                        t.description = "";
+                    }
+                }
                 return `${date};${time};${t.type || ""};${t.description || ""};${t.isin || ""};${formatNumber(t.amount, lang)};${formatNumber(t.quantity, lang)};${t.currency || ""};${formatNumber(t.details?.fees, lang)};${formatNumber(t.details?.taxes, lang)};${formatNumber(t.details?.marketValuation, lang)};${t.id || ""}`;
             });
         } else if (lang === "en-US") {
-            for (const transaction of transactions) {
-                if (transaction.type === "CASH_TRANSACTION" && transaction.cashTransactionType !== "DISTRIBUTION") {
-                    transaction.id += " " + transaction.description;
-                    transaction.description = "";
-                }
-                if (transaction.type === "SECURITY_TRANSACTION") {
-                    transaction.type = JSON.stringify(transaction.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
-                } else if (transaction.type === "CASH_TRANSACTION") {
-                    transaction.type = JSON.stringify(transaction.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend");
-                }
-            }
-
             csvHeader = "Date,Time,Type,Security Name,ISIN,Value,Shares,Transaction Currency,Fees,Taxes,Gross Amount,Note\n";
             csvRows = transactions.map(t => {
                 const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
                 const [date, time] = dateTime.split(", ");
+                if (t.type === "SECURITY_TRANSACTION") {
+                    t.type = JSON.stringify(t.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
+                } else if (t.type === "CASH_TRANSACTION") {
+                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend");
+                    if (t.cashTransactionType === "DISTRIBUTION") {
+                        t.isin = t.relatedIsin;
+                    } else {
+                        t.id += " " + t.description;
+                        t.description = "";
+                    }
+                }
                 return `${date},${time},${t.type || ""},${t.description || ""},${t.isin || ""},${formatNumber(t.amount, lang)},${formatNumber(t.quantity, lang)},${t.currency || ""},${formatNumber(t.details?.fees, lang)},${formatNumber(t.details?.taxes, lang)},${formatNumber(t.details?.marketValuation, lang)},${t.id || ""}`;
             });
         }
