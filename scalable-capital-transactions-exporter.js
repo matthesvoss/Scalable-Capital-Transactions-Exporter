@@ -75,38 +75,47 @@
         return typeof obj === 'object' && obj !== null;
     }
 
-    function findIds() {
-        let resultsMap = {};
-
+    function getPersonId() {
         function visit(node) {
-            if (!node) {
-                return;
-            } else if (Array.isArray(node)) {
+            if (!node) return null;
+    
+            if (Array.isArray(node)) {
                 for (const subNode of node) {
-                    visit(subNode);
+                    const result = visit(subNode);
+                    if (result) return result;
                 }
-            } else if (isObject(node)) {
-                const personId = node.personId;
-                const portfolioId = node.sanitizedPortfolioId;
-
-                if (personId || portfolioId) {
-                    resultsMap[personId || portfolioId] = { personId, portfolioId };
-                }
-
-                for (const key of Object.keys(node)) {
+                return null;
+            }
+    
+            if (isObject(node)) {
+                if (node.personId) return node.personId;
+    
+                for (const key in node) {
                     if (["children", "props", "security", "items"].includes(key) || key.startsWith("__reactProps")) {
-                        visit(node[key]);
+                        const result = visit(node[key]);
+                        if (result) return result;
                     }
                 }
             }
-            if (node.childNodes) {
-                node.childNodes.forEach(n => visit(n));
+    
+            if (node.childNodes && typeof node.childNodes.forEach === 'function') {
+                for (const child of node.childNodes) {
+                    const result = visit(child);
+                    if (result) return result;
+                }
             }
+    
+            return null;
         }
-
-        visit(document.body);
-        return resultsMap;
+    
+        return visit(document.body);
     }
+
+    function getPortfolioId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("portfolioId");
+    }
+    
 
     async function fetchTransactionDetails(personId, portfolioId, transactionId) {
         const url = "https://de.scalable.capital/broker/api/data";
@@ -274,21 +283,22 @@
             return null;
         }
 
-        const fees = (transaction.tradeTransactionAmounts.transactionFee || 0) +
-            (transaction.tradeTransactionAmounts.venueFee || 0) +
-            (transaction.tradeTransactionAmounts.cryptoSpreadFee || 0);
+        const fees = (transaction.tradeTransactionAmounts?.transactionFee || 0) +
+            (transaction.tradeTransactionAmounts?.venueFee || 0) +
+            (transaction.tradeTransactionAmounts?.cryptoSpreadFee || 0);
 
-        const taxes = transaction.tradeTransactionAmounts.taxAmount || 0;
+        const taxes = transaction.tradeTransactionAmounts?.taxAmount || 0;
 
         return {
             fees: fees,
             taxes: taxes,
-            marketValuation: transaction.tradeTransactionAmounts.marketValuation
+            marketValuation: transaction.tradeTransactionAmounts?.marketValuation
         };
     }
 
     async function fetchTransactions(lang) {
-        const [{ personId, portfolioId } = {}] = Object.values(findIds());
+        const personId = getPersonId();
+        const portfolioId = getPortfolioId();
 
         if (!personId || !portfolioId) {
             console.error("Error: Could not find personId or portfolioId.");
@@ -395,7 +405,7 @@
             const result = data[0]?.data?.account?.brokerPortfolio?.moreTransactions;
 
             if (result?.transactions?.length > 0) {
-                const filteredTransactions = result.transactions.filter(t => t.status !== "CANCELLED");
+                const filteredTransactions = result.transactions.filter(t => t.status === "SETTLED");
 
                 transactions = transactions.concat(filteredTransactions);
                 cursor = result.cursor;
