@@ -470,7 +470,7 @@
                 if (t.type === "SECURITY_TRANSACTION") {
                     t.type = JSON.stringify(t.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
                 } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende");
+                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende").replace("INTEREST", "Zinsen");
                     if (t.cashTransactionType === "DISTRIBUTION") {
                         t.isin = t.relatedIsin;
                     } else {
@@ -488,7 +488,7 @@
                 if (t.type === "SECURITY_TRANSACTION") {
                     t.type = JSON.stringify(t.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
                 } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend");
+                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend").replace("INTEREST", "Interest");
                     if (t.cashTransactionType === "DISTRIBUTION") {
                         t.isin = t.relatedIsin;
                     } else {
