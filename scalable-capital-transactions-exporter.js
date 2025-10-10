@@ -504,7 +504,7 @@
                         t.description = "";
                     }
                 }
-                return `${date},${time},${t.type || ""},${t.description || ""},${t.isin || ""},${formatNumber(t.amount, lang)},${formatNumber(t.quantity, lang)},${t.currency || ""},${formatNumber(t.details?.fees, lang)},${formatNumber(t.details?.taxes, lang)},${formatNumber(t.details?.marketValuation, lang)},${t.id || ""}`;
+                return `${date},${time},${t.type || ""},${t.description || ""},${t.isin || ""},${formatNumber(t.amount, lang)},${formatNumber(t.quantity, lang, false)},${t.currency || ""},${formatNumber(t.details?.fees, lang)},${formatNumber(t.details?.taxes, lang)},${formatNumber(t.details?.marketValuation, lang)},${t.id || ""}`;
             });
         }
         const csvContent = csvHeader + csvRows.join("\n");
