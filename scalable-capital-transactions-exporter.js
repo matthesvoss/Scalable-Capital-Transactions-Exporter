@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Scalable Capital Transactions Exporter
 // @namespace    http://tampermonkey.net/
-// @version      2025-04-10
+// @version      2025-10-10
 // @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=scalable.capital
 // @grant        GM_registerMenuCommand
-// @require      https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.5.0/decimal.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.6.0/decimal.min.js
 // ==/UserScript==
 
 (function () {
@@ -454,10 +454,18 @@
         });
     }
 
-    function formatNumber(number, lang) {
+    function formatNumber(number, lang, rounding = true) {
         if (number === "" || number == null || isNaN(number)) return "";
-        const rounded = new Decimal(number).toDecimalPlaces(2).toString();
-        return lang === "de-DE" ? rounded.replace(".", ",") : rounded;
+
+        const decimal = new Decimal(number);
+        let formatted;
+
+        if (rounding) {
+            formatted = decimal.toDecimalPlaces(2).toString();
+        } else {
+            formatted = decimal.toString();
+        }
+        return lang === "de-DE" ? formatted.replace(".", ",") : formatted;
     }
 
     function parseToPortfolioPerformanceCSV(transactions, lang) {
@@ -478,7 +486,7 @@
                         t.description = "";
                     }
                 }
-                return `${date};${time};${t.type || ""};${t.description || ""};${t.isin || ""};${formatNumber(t.amount, lang)};${formatNumber(t.quantity, lang)};${t.currency || ""};${formatNumber(t.details?.fees, lang)};${formatNumber(t.details?.taxes, lang)};${formatNumber(t.details?.marketValuation, lang)};${t.id || ""}`;
+                return `${date};${time};${t.type || ""};${t.description || ""};${t.isin || ""};${formatNumber(t.amount, lang)};${formatNumber(t.quantity, lang, false)};${t.currency || ""};${formatNumber(t.details?.fees, lang)};${formatNumber(t.details?.taxes, lang)};${formatNumber(t.details?.marketValuation, lang)};${t.id || ""}`;
             });
         } else if (lang === "en-US") {
             csvHeader = "Date,Time,Type,Security Name,ISIN,Value,Shares,Transaction Currency,Fees,Taxes,Gross Amount,Note\n";
