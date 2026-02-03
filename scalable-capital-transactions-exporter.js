@@ -498,9 +498,9 @@
             const result = data[0]?.data?.account?.brokerPortfolio?.moreTransactions;
 
             if (result?.transactions?.length > 0) {
-                const settled = result.transactions.filter(t => t.status === "SETTLED");
+                const settledOrFilled = result.transactions.filter(t => t.status === "SETTLED" || t.status === "FILLED");
 
-                const inRange = settled.filter(t => {
+                const inRange = settledOrFilled.filter(t => {
                     const d = new Date(t.lastEventDateTime);
                     if (startDate && d < startDate) return false;
                     if (d > endDate) return false;
