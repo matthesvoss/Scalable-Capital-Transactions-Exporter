@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Scalable Capital Transactions Exporter
 // @namespace    http://tampermonkey.net/
-// @version      2025-10-10
+// @version      2026-02-03
 // @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=scalable.capital
 // @grant        GM_registerMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @require      https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.6.0/decimal.min.js
 // ==/UserScript==
 
@@ -20,6 +22,45 @@
     GM_registerMenuCommand("Export Transactions CSV EN", function () {
         fetchTransactions("en-US");
     });
+
+    const STORAGE_KEYS = {
+        START_DATE: "scalable_export_start_date",
+        END_DATE: "scalable_export_end_date"
+    };
+
+    function askDateRange() {
+        const lastStart = GM_getValue(STORAGE_KEYS.START_DATE, "");
+        const lastEnd = GM_getValue(STORAGE_KEYS.END_DATE, "");
+
+        const startInput = prompt("Start date (YYYY-MM-DD) – leave empty for no lower bound:", lastStart);
+        if (startInput === null) return null;
+
+        const endInput = prompt("End date (YYYY-MM-DD) – leave empty for today:", lastEnd);
+        if (endInput === null) return null;
+
+        const startDate = startInput ? new Date(startInput + "T00:00:00Z") : null;
+        const endDate = endInput ? new Date(endInput + "T23:59:59Z") : new Date();
+
+        if (startDate && isNaN(startDate)) {
+            alert("Invalid start date format. Use YYYY-MM-DD.");
+            return null;
+        }
+
+        if (endDate && isNaN(endDate)) {
+            alert("Invalid end date format. Use YYYY-MM-DD.");
+            return null;
+        }
+
+        if (startDate && endDate && startDate > endDate) {
+            alert("Start date must not be after end date.");
+            return null;
+        }
+
+        GM_setValue(STORAGE_KEYS.START_DATE, startInput || "");
+        GM_setValue(STORAGE_KEYS.END_DATE, endInput || "");
+
+        return { startDate, endDate };
+    }
 
     function createLoadingBar() {
         const barContainer = document.createElement("div");
@@ -78,7 +119,7 @@
     function getPersonId() {
         function visit(node) {
             if (!node) return null;
-    
+
             if (Array.isArray(node)) {
                 for (const subNode of node) {
                     const result = visit(subNode);
@@ -86,10 +127,10 @@
                 }
                 return null;
             }
-    
+
             if (isObject(node)) {
                 if (node.personId) return node.personId;
-    
+
                 for (const key in node) {
                     if (["children", "props", "security", "items"].includes(key) || key.startsWith("__reactProps")) {
                         const result = visit(node[key]);
@@ -97,17 +138,17 @@
                     }
                 }
             }
-    
+
             if (node.childNodes && typeof node.childNodes.forEach === 'function') {
                 for (const child of node.childNodes) {
                     const result = visit(child);
                     if (result) return result;
                 }
             }
-    
+
             return null;
         }
-    
+
         return visit(document.body);
     }
 
@@ -115,7 +156,6 @@
         const params = new URLSearchParams(window.location.search);
         return params.get("portfolioId");
     }
-    
 
     async function fetchTransactionDetails(personId, portfolioId, transactionId) {
         const url = "https://de.scalable.capital/broker/api/data";
@@ -297,6 +337,11 @@
     }
 
     async function fetchTransactions(lang) {
+        const dateRange = askDateRange();
+        if (!dateRange) return;
+
+        const { startDate, endDate } = dateRange;
+
         const personId = getPersonId();
         const portfolioId = getPortfolioId();
 
@@ -405,12 +450,23 @@
             const result = data[0]?.data?.account?.brokerPortfolio?.moreTransactions;
 
             if (result?.transactions?.length > 0) {
-                const filteredTransactions = result.transactions.filter(t => t.status === "SETTLED");
+                const settled = result.transactions.filter(t => t.status === "SETTLED");
 
-                transactions = transactions.concat(filteredTransactions);
+                const inRange = settled.filter(t => {
+                    const d = new Date(t.lastEventDateTime);
+                    if (startDate && d < startDate) return false;
+                    if (d > endDate) return false;
+                    return true;
+                });
+
+                transactions = transactions.concat(inRange);
+
+                const lastTransaction = result.transactions[result.transactions.length - 1];
+                const lastTransactionDate = new Date(lastTransaction.lastEventDateTime);
+
                 cursor = result.cursor;
 
-                if (cursor === null) {
+                if (cursor === null || (startDate && lastTransactionDate < startDate)) {
                     hasMore = false;
                 }
             } else {
