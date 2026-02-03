@@ -6,4 +6,5 @@ Export your Scalable Capital Transactions as a .csv file in German or English, r
 2. Install the Userscript scalable-capital-transactions-exporter.js
 3. Login to Scalable Capital and navigate to your transactions (https://de.scalable.capital/broker/transactions)
 4. Click on Tampermonkey and export your transactions as a CSV file in German or English using "Export Transactions CSV DE" or "Export Transactions CSV EN"
-5. Import the CSV file in Portfolio Performance using "File" -> "Import" -> "CSV files"
+5. (Optionally) select a date range
+6. Import the CSV file in Portfolio Performance using "File" -> "Import" -> "CSV files"
