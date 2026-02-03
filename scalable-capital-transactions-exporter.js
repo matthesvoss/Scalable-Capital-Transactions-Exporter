@@ -28,6 +28,8 @@
         END_DATE: "scalable_export_end_date"
     };
 
+    let exportCancelled = false;
+
     function askDateRange() {
         const lastStart = GM_getValue(STORAGE_KEYS.START_DATE, "");
         const lastEnd = GM_getValue(STORAGE_KEYS.END_DATE, "");
@@ -63,6 +65,8 @@
     }
 
     function createLoadingBar() {
+        exportCancelled = false;
+
         const barContainer = document.createElement("div");
         barContainer.id = "scalable-exporter-loading-bar";
         Object.assign(barContainer.style, {
@@ -75,7 +79,20 @@
             backgroundColor: "#ddd",
             borderRadius: "12px",
             zIndex: "9999",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.2)"
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            display: "flex",
+            alignItems: "center",
+            padding: "2px",
+            boxSizing: "border-box"
+        });
+
+        const barWrapper = document.createElement("div");
+        Object.assign(barWrapper.style, {
+            flexGrow: "1",
+            height: "100%",
+            backgroundColor: "#ddd",
+            borderRadius: "10px",
+            overflow: "hidden"
         });
 
         const bar = document.createElement("div");
@@ -84,21 +101,50 @@
             height: "100%",
             width: "0%",
             backgroundColor: "#4caf50",
-            borderRadius: "12px",
+            borderRadius: "10px",
             textAlign: "center",
-            lineHeight: "24px",
+            lineHeight: "20px",
             color: "white",
             fontWeight: "bold",
             transition: "width 0.2s ease"
         });
 
-        barContainer.appendChild(bar);
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "✕";
+        cancelBtn.title = "Cancel export";
+        Object.assign(cancelBtn.style, {
+            marginLeft: "8px",
+            height: "20px",
+            width: "20px",
+            borderRadius: "50%",
+            border: "none",
+            backgroundColor: "#d32f2f",
+            color: "white",
+            cursor: "pointer",
+            fontWeight: "bold",
+            lineHeight: "18px",
+            padding: "0",
+            flexShrink: "0"
+        });
+
+        cancelBtn.addEventListener("click", () => {
+            exportCancelled = true;
+            cancelBtn.disabled = true;
+            cancelBtn.style.opacity = "0.6";
+            bar.textContent = "Cancelled";
+            bar.style.backgroundColor = "#9e9e9e";
+            console.warn("Transaction export cancelled by user.");
+        });
+
+        barWrapper.appendChild(bar);
+        barContainer.appendChild(barWrapper);
+        barContainer.appendChild(cancelBtn);
         document.body.appendChild(barContainer);
     }
 
     function updateLoadingBar(current, total) {
         const bar = document.getElementById("scalable-exporter-progress");
-        if (bar) {
+        if (bar && total > 0) {
             const percentage = Math.floor((current / total) * 100);
             bar.style.width = `${percentage}%`;
             bar.textContent = `${percentage}%`;
@@ -365,7 +411,7 @@
         let cursor = null;
         let hasMore = true;
 
-        while (hasMore) {
+        while (hasMore && !exportCancelled) {
             console.log("Current cursor:", cursor);
 
             const body = JSON.stringify([{
@@ -441,6 +487,8 @@
                 credentials: "include"
             });
 
+            if (exportCancelled) break;
+
             if (!response.ok) {
                 console.error("Error while fetching transactions:", response.statusText);
                 break;
@@ -482,6 +530,8 @@
 
         console.log("Loading details for ", total, " transactions...");
         for (const transaction of securityTransactions) {
+            if (exportCancelled) break;
+
             const details = await fetchTransactionDetails(personId, portfolioId, transaction.id);
             if (details) {
                 transaction.details = details;
@@ -491,6 +541,8 @@
         }
 
         removeLoadingBar();
+
+        if (exportCancelled) return;
 
         console.log("Transactions loaded:", transactions.length);
         parseToPortfolioPerformanceCSV(transactions, lang);
