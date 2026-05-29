@@ -6,6 +6,9 @@
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=scalable.capital
+// @homepage     https://github.com/matthesvoss/Scalable-Capital-Transactions-Exporter
+// @updateURL    https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.js
+// @downloadURL  https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.js
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
