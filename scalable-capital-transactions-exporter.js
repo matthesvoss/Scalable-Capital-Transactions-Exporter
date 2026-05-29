@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scalable Capital Transactions Exporter
 // @namespace    http://tampermonkey.net/
-// @version      2026-02-03
+// @version      2026-05-29
 // @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
