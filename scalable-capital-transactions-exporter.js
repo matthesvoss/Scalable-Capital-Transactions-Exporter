@@ -690,47 +690,94 @@
         return lang === "de-DE" ? formatted.replace(".", ",") : formatted;
     }
 
-    function parseToPortfolioPerformanceCSV(transactions, lang) {
-        let csvHeader, csvRows;
-        if (lang === "de-DE") {
-            csvHeader = "Datum;Uhrzeit;Typ;Wertpapiername;ISIN;Wert;Stück;Buchungswährung;Gebühren;Steuern;Bruttobetrag;Notiz\n";
-            csvRows = transactions.map(t => {
-                const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
-                const [date, time] = dateTime.split(", ");
-                if (t.type === "SECURITY_TRANSACTION") {
-                    t.type = (t.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
-                } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = (t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("CASH_TRANSFER_IN", "Einlage").replace("CASH_TRANSFER_OUT", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende").replace("INTEREST", "Zinsen");
-                    if (t.cashTransactionType === "DISTRIBUTION") {
-                        t.isin = t.relatedIsin;
-                    } else {
-                        t.id += " " + t.description;
-                        t.description = "";
-                    }
-                }
-                return `${date};${time};${t.type || ""};${t.description || ""};${t.isin || ""};${formatNumber(t.amount, lang)};${formatNumber(t.quantity, lang, false)};${t.currency || ""};${formatNumber(t.details?.fees, lang)};${formatNumber(t.details?.taxes, lang)};${formatNumber(t.details?.marketValuation, lang)};${t.id || ""}`;
-            });
-        } else if (lang === "en-US") {
-            csvHeader = "Date,Time,Type,Security Name,ISIN,Value,Shares,Transaction Currency,Fees,Taxes,Gross Amount,Note\n";
-            csvRows = transactions.map(t => {
-                const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
-                const [date, time] = dateTime.split(", ");
-                if (t.type === "SECURITY_TRANSACTION") {
-                    t.type = (t.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
-                } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = (t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("CASH_TRANSFER_IN", "Deposit").replace("CASH_TRANSFER_OUT", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend").replace("INTEREST", "Interest");
-                    if (t.cashTransactionType === "DISTRIBUTION") {
-                        t.isin = t.relatedIsin;
-                    } else {
-                        t.id += " " + t.description;
-                        t.description = "";
-                    }
-                }
-                return `${date},${time},${t.type || ""},${t.description || ""},${t.isin || ""},${formatNumber(t.amount, lang)},${formatNumber(t.quantity, lang, false)},${t.currency || ""},${formatNumber(t.details?.fees, lang)},${formatNumber(t.details?.taxes, lang)},${formatNumber(t.details?.marketValuation, lang)},${t.id || ""}`;
-            });
+    function csvEscape(value, delimiter) {
+        const str = String(value ?? "");
+        if (str.includes(delimiter) || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+            return `"${str.replace(/"/g, '""')}"`;
         }
-        const csvContent = csvHeader + csvRows.join("\n");
+        return str;
+    }
 
+    const I18N_CONFIG = {
+        "de-DE": {
+            delimiter: ";",
+            headers: ["Datum", "Uhrzeit", "Typ", "Wertpapiername", "ISIN", "Wert", "Stück", "Buchungswährung", "Gebühren", "Steuern", "Bruttobetrag", "Notiz"],
+            securityTypes: {
+                BUY: "Kauf",
+                SELL: "Verkauf"
+            },
+            cashTypes: {
+                DEPOSIT: "Einlage",
+                WITHDRAWAL: "Entnahme",
+                CASH_TRANSFER_IN: "Einlage",
+                CASH_TRANSFER_OUT: "Entnahme",
+                TAX_RETURN: "Steuerrückerstattung",
+                DISTRIBUTION: "Dividende",
+                INTEREST: "Zinsen"
+            }
+        },
+        "en-US": {
+            delimiter: ",",
+            headers: ["Date", "Time", "Type", "Security Name", "ISIN", "Value", "Shares", "Transaction Currency", "Fees", "Taxes", "Gross Amount", "Note"],
+            securityTypes: {
+                BUY: "Buy",
+                SELL: "Sell"
+            },
+            cashTypes: {
+                DEPOSIT: "Deposit",
+                WITHDRAWAL: "Removal",
+                CASH_TRANSFER_IN: "Deposit",
+                CASH_TRANSFER_OUT: "Removal",
+                TAX_RETURN: "Tax Refund",
+                DISTRIBUTION: "Dividend",
+                INTEREST: "Interest"
+            }
+        }
+    };
+
+    function parseToPortfolioPerformanceCSV(transactions, lang) {
+        const { delimiter, headers, securityTypes, cashTypes } = I18N_CONFIG[lang];
+
+        const csvHeader = headers.join(delimiter) + "\n";
+
+        const csvRows = transactions.map(t => {
+            const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
+            const [date, time] = dateTime.split(", ");
+
+            let type = "";
+            let description = csvEscape(t.description, delimiter);
+            let isin = t.isin;
+            let note = t.id;
+
+            if (t.type === "SECURITY_TRANSACTION") {
+                type = securityTypes[t.side] || t.side || "";
+            } else if (t.type === "CASH_TRANSACTION") {
+                type = cashTypes[t.cashTransactionType] || t.cashTransactionType || "";
+                if (t.cashTransactionType === "DISTRIBUTION") {
+                    isin = t.relatedIsin;
+                } else {
+                    note = `${t.id} ${description}`.trim();
+                    description = "";
+                }
+            }
+
+            return [
+                date,
+                time,
+                type,
+                description,
+                isin,
+                formatNumber(t.amount, lang),
+                formatNumber(t.quantity, lang, false),
+                t.currency,
+                formatNumber(t.details?.fees, lang),
+                formatNumber(t.details?.taxes, lang),
+                formatNumber(t.details?.marketValuation, lang),
+                note
+            ].join(delimiter);
+        });
+
+        const csvContent = csvHeader + csvRows.join("\n");
         downloadCSV(csvContent);
     }
 
