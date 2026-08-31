@@ -698,9 +698,9 @@
                 const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
                 const [date, time] = dateTime.split(", ");
                 if (t.type === "SECURITY_TRANSACTION") {
-                    t.type = JSON.stringify(t.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
+                    t.type = (t.side || "").replace("BUY", "Kauf").replace("SELL", "Verkauf");
                 } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("CASH_TRANSFER_IN", "Einlage").replace("CASH_TRANSFER_OUT", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende").replace("INTEREST", "Zinsen");
+                    t.type = (t.cashTransactionType || "").replace("DEPOSIT", "Einlage").replace("WITHDRAWAL", "Entnahme").replace("CASH_TRANSFER_IN", "Einlage").replace("CASH_TRANSFER_OUT", "Entnahme").replace("TAX_RETURN", "Steuerrückerstattung").replace("DISTRIBUTION", "Dividende").replace("INTEREST", "Zinsen");
                     if (t.cashTransactionType === "DISTRIBUTION") {
                         t.isin = t.relatedIsin;
                     } else {
@@ -716,9 +716,9 @@
                 const dateTime = formatLocalDateTime(t.lastEventDateTime, lang);
                 const [date, time] = dateTime.split(", ");
                 if (t.type === "SECURITY_TRANSACTION") {
-                    t.type = JSON.stringify(t.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
+                    t.type = (t.side || "").replace("BUY", "Buy").replace("SELL", "Sell");
                 } else if (t.type === "CASH_TRANSACTION") {
-                    t.type = JSON.stringify(t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("CASH_TRANSFER_IN", "Deposit").replace("CASH_TRANSFER_OUT", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend").replace("INTEREST", "Interest");
+                    t.type = (t.cashTransactionType || "").replace("DEPOSIT", "Deposit").replace("WITHDRAWAL", "Removal").replace("CASH_TRANSFER_IN", "Deposit").replace("CASH_TRANSFER_OUT", "Removal").replace("TAX_RETURN", "Tax Refund").replace("DISTRIBUTION", "Dividend").replace("INTEREST", "Interest");
                     if (t.cashTransactionType === "DISTRIBUTION") {
                         t.isin = t.relatedIsin;
                     } else {
