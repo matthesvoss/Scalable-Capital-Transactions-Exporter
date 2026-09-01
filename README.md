@@ -5,7 +5,7 @@ Export your Scalable Capital transactions as a .csv (comma-separated values) fil
 ## Usage
 
 1. [Install](https://www.tampermonkey.net) the Tampermonkey browser extension.
-2. [Install](scalable-capital-transactions-exporter.user.js?raw=1) the Scalable Capital Transactions Exporter userscript.\
+2. [Install](https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.user.js) the Scalable Capital Transactions Exporter userscript.\
    If the automatic installation does not work, copy the raw contents of [scalable-capital-transactions-exporter.user.js](scalable-capital-transactions-exporter.user.js).
    Then go to Tampermonkey &rarr; `Create a new script...` &rarr; Replace everything with the copied script &rarr; `File` &rarr; `Save`.
 3. Login to Scalable Capital and navigate to your broker transactions (<https://de.scalable.capital/broker/transactions>).
