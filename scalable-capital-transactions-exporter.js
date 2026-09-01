@@ -28,10 +28,84 @@
 
     const STORAGE_KEYS = {
         START_DATE: "scalable_export_start_date",
-        END_DATE: "scalable_export_end_date"
+        END_DATE: "scalable_export_end_date",
+        RATE_LIMIT_ENABLED: "scalable_export_rate_limit_enabled"
     };
 
+    function isRateLimitEnabled() {
+        return GM_getValue(STORAGE_KEYS.RATE_LIMIT_ENABLED, true);
+    }
+
+    function registerRateLimitToggle() {
+        const label = isRateLimitEnabled()
+            ? "Rate Limiting: ON (click to disable)"
+            : "Rate Limiting: OFF (click to enable)";
+
+        GM_registerMenuCommand(label, function () {
+            const newValue = !isRateLimitEnabled();
+            GM_setValue(STORAGE_KEYS.RATE_LIMIT_ENABLED, newValue);
+            console.log(`Rate limiting ${newValue ? "enabled" : "disabled"}.`);
+            alert(`Rate limiting is now ${newValue ? "ON" : "OFF"}.\nReload the page to refresh the menu label.`);
+        });
+    }
+
+    registerRateLimitToggle();
+
+    const RATE_LIMIT_MIN_MS = 150;
+    const RATE_LIMIT_MAX_MS = 450;
+    const MAX_RETRIES = 3;
+
     let exportCancelled = false;
+    let fetchErrors = [];
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function randomDelay(minMs = RATE_LIMIT_MIN_MS, maxMs = RATE_LIMIT_MAX_MS) {
+        if (!isRateLimitEnabled()) return Promise.resolve();
+        const ms = minMs + Math.random() * (maxMs - minMs);
+        return sleep(ms);
+    }
+
+    async function safeFetchJson(url, options, context) {
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            await randomDelay();
+
+            if (exportCancelled) return null;
+
+            let response;
+            try {
+                response = await fetch(url, options);
+            } catch (networkError) {
+                console.error(`Network error while ${context} (attempt ${attempt}/${MAX_RETRIES}):`, networkError);
+                fetchErrors.push(`${context}: network error - ${networkError.message}`);
+                if (attempt === MAX_RETRIES) return null;
+                await randomDelay(500, 1500);
+                continue;
+            }
+
+            if (!response.ok) {
+                const isRetryable = response.status === 429 || response.status >= 500;
+                console.error(`HTTP error while ${context} (attempt ${attempt}/${MAX_RETRIES}): ${response.status} ${response.statusText}`);
+                fetchErrors.push(`${context}: HTTP ${response.status} ${response.statusText}`);
+                if (isRetryable && attempt < MAX_RETRIES) {
+                    await randomDelay(500, 1500);
+                    continue;
+                }
+                return null;
+            }
+
+            try {
+                return await response.json();
+            } catch (parseError) {
+                console.error(`Failed to parse JSON while ${context}:`, parseError);
+                fetchErrors.push(`${context}: invalid JSON response - ${parseError.message}`);
+                return null;
+            }
+        }
+        return null;
+    }
 
     function askDateRange() {
         const lastStart = GM_getValue(STORAGE_KEYS.START_DATE, "");
@@ -453,23 +527,22 @@
             }`
         }]);
 
-        const response = await fetch(url, {
+        const data = await safeFetchJson(url, {
             method: "POST",
             headers: headers,
             body: body,
             credentials: "include"
-        });
+        }, `fetching details for transaction ${transactionId}`);
 
-        if (!response.ok) {
-            console.error(`Error while fetching details for transaction ${transactionId}:`, response.statusText);
+        if (!data) {
             return null;
         }
 
-        const data = await response.json();
         const transaction = data[0]?.data?.account?.brokerPortfolio?.transactionDetails;
 
         if (!transaction) {
             console.error(`Found no details for transaction ${transactionId}`);
+            fetchErrors.push(`transaction ${transactionId}: no details returned`);
             return null;
         }
 
@@ -487,6 +560,8 @@
     }
 
     async function fetchTransactions(lang) {
+        fetchErrors = [];
+
         const dateRange = askDateRange();
         if (!dateRange) return;
 
@@ -495,8 +570,13 @@
         const personId = getPersonId();
         const portfolioId = getPortfolioId();
 
-        if (!personId || !portfolioId) {
-            console.error("Error: Could not find personId or portfolioId.");
+        const missing = [];
+        if (!personId) missing.push("personId");
+        if (!portfolioId) missing.push("portfolioId");
+
+        if (missing.length > 0) {
+            console.error(`Could not find ${missing.join(" or ")}.`);
+            alert(`Could not find ${missing.join(" or ")} on this page. Please reload the transactions page and try again.`);
             return;
         }
 
@@ -515,9 +595,8 @@
         let cursor = null;
         let hasMore = true;
 
+        console.log("Loading transactions...");
         while (hasMore && !exportCancelled) {
-            console.log("Current cursor:", cursor);
-
             const body = JSON.stringify([{
                 "operationName": "moreTransactions",
                 "variables": {
@@ -601,21 +680,20 @@
                 }`
             }]);
 
-            const response = await fetch(url, {
+            const data = await safeFetchJson(url, {
                 method: "POST",
                 headers: headers,
                 body: body,
                 credentials: "include"
-            });
+            }, `fetching transaction list (cursor ${cursor ?? "start"})`);
 
             if (exportCancelled) break;
 
-            if (!response.ok) {
-                console.error("Error while fetching transactions:", response.statusText);
+            if (!data) {
+                console.error("Stopping pagination after repeated failures fetching the transaction list.");
                 break;
             }
 
-            const data = await response.json();
             const result = data[0]?.data?.account?.brokerPortfolio?.moreTransactions;
 
             if (result?.transactions?.length > 0) {
@@ -642,19 +720,21 @@
             }
         }
 
+        console.log("Transactions loaded:", transactions.length);
+
         createLoadingBar();
 
         const securityTransactions = transactions.filter(t => t.type === "SECURITY_TRANSACTION");
         let loaded = 0;
         const total = securityTransactions.length;
 
-        console.log("Loading details for ", total, " transactions...");
-        for (const transaction of securityTransactions) {
+        console.log("Loading details for", total, "transaction(s)...");
+        for (const t of securityTransactions) {
             if (exportCancelled) break;
 
-            const details = await fetchTransactionDetails(personId, portfolioId, transaction.id);
+            const details = await fetchTransactionDetails(personId, portfolioId, t.id);
             if (details) {
-                transaction.details = details;
+                t.details = details;
             }
             loaded++;
             updateLoadingBar(loaded, total);
@@ -664,7 +744,15 @@
 
         if (exportCancelled) return;
 
-        console.log("Transactions loaded:", transactions.length);
+        if (fetchErrors.length > 0) {
+            console.warn(`Export completed with ${fetchErrors.length} request error(s):`, fetchErrors);
+            alert(
+                `Export finished, but ${fetchErrors.length} request(s) failed (see browser console for details).\n` +
+                `Some rows in the CSV may be missing fees/taxes/gross amount, or transactions may be missing entirely.`
+            );
+        }
+
+        console.log("Exporting transactions...");
         parseToPortfolioPerformanceCSV(transactions, lang);
     }
 
