@@ -522,7 +522,14 @@
                 "operationName": "moreTransactions",
                 "variables": {
                     "personId": personId,
-                    "input": { "pageSize": 50, "type": [], "status": [], "searchTerm": "", "cursor": cursor, "includeReinvestmentSubtypes": true },
+                    "input": {
+                        "pageSize": 50,
+                        "type": [],
+                        "status": [],
+                        "searchTerm": "",
+                        "cursor": cursor,
+                        "includeReinvestmentSubtypes": true
+                    },
                     "portfolioId": portfolioId
                 },
                 "query": `query moreTransactions($personId: ID!, $input: BrokerTransactionInput!, $portfolioId: ID!) {
@@ -617,8 +624,7 @@
                 const inRange = settledOrFilled.filter(t => {
                     const d = new Date(t.lastEventDateTime);
                     if (startDate && d < startDate) return false;
-                    if (d > endDate) return false;
-                    return true;
+                    return d <= endDate;
                 });
 
                 transactions = transactions.concat(inRange);
@@ -781,14 +787,25 @@
         downloadCSV(csvContent);
     }
 
+    function safeTimestamp() {
+        const pad = (n) => String(n).padStart(2, "0");
+        const d = new Date();
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+            `_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+    }
+
     function downloadCSV(csvContent) {
-        const blob = new Blob([csvContent], { type: "text/csv" });
+        const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = "scalable_transactions_export_" + (new Date().toISOString().split(".")[0]) + ".csv";
+        a.download = `scalable_transactions_export_${safeTimestamp()}.csv`;
+        a.style.display = "none";
+
+        document.body.appendChild(a);
         a.click();
+        a.remove();
 
         URL.revokeObjectURL(url);
     }
