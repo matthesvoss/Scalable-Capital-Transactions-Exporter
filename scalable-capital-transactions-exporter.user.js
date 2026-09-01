@@ -2,13 +2,13 @@
 // @name         Scalable Capital Transactions Exporter
 // @namespace    http://tampermonkey.net/
 // @version      2026-05-29
-// @description  Export your Scalable Capital Transactions as a .csv file in German or English, ready to be imported into Portfolio Performance.
+// @description  Export your Scalable Capital Transactions as a .csv (comma-separated values) file in German or English, ready to be imported into Portfolio Performance.
 // @author       Matthes Voß
 // @match        https://*.scalable.capital/broker/transactions*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=scalable.capital
 // @homepage     https://github.com/matthesvoss/Scalable-Capital-Transactions-Exporter
-// @updateURL    https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.js
-// @downloadURL  https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.js
+// @updateURL    https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.user.js
+// @downloadURL  https://raw.githubusercontent.com/matthesvoss/Scalable-Capital-Transactions-Exporter/refs/heads/main/scalable-capital-transactions-exporter.user.js
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
